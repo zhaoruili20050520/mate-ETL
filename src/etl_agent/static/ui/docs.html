@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ETL-Agent 功能操作手册</title>
+    <link rel="stylesheet" href="/static/ui/styles.css?v=37" />
+  </head>
+  <body>
+    <div class="manual-auth-overlay" id="manualAuthOverlay" hidden>
+      <div class="manual-auth-card">
+        <div class="brand-mark">
+          <i data-lucide="lock-keyhole"></i>
+        </div>
+        <h2>登录后使用操作手册</h2>
+        <p>请先使用 ETL-Agent 账号登录，系统会自动判断你的权限。</p>
+        <div class="field">
+          <label for="manualUsername">账号</label>
+          <div class="input-wrap">
+            <i data-lucide="user-round"></i>
+            <input id="manualUsername" type="text" placeholder="请输入账号" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="manualPassword">密码</label>
+          <div class="input-wrap">
+            <i data-lucide="lock-keyhole"></i>
+            <input id="manualPassword" type="password" placeholder="请输入密码" />
+          </div>
+        </div>
+        <p class="auth-status" id="manualLoginStatus"></p>
+        <button class="button accent" id="manualLoginButton" style="width: 100%">
+          <i data-lucide="log-in"></i>
+          <span>登录并继续</span>
+        </button>
+      </div>
+    </div>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">
+            <i data-lucide="workflow"></i>
+          </div>
+          <div class="brand-copy">
+            <strong>ETL-Agent</strong>
+            <span>数据编排控制台</span>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="主导航">
+          <div class="nav-label">工作台</div>
+          <a class="nav-item" href="/?page=overview">
+            <i data-lucide="layout-dashboard"></i>
+            <span>总览</span>
+          </a>
+          <a class="nav-item" href="/?page=projects">
+            <i data-lucide="boxes"></i>
+            <span>项目</span>
+          </a>
+          <a class="nav-item" href="/?page=connections">
+            <i data-lucide="database"></i>
+            <span>连接</span>
+          </a>
+          <a class="nav-item" href="/?page=pipelines">
+            <i data-lucide="git-branch"></i>
+            <span>管道</span>
+          </a>
+          <a class="nav-item" href="/?page=runs">
+            <i data-lucide="play-square"></i>
+            <span>执行记录</span>
+          </a>
+
+          <div class="nav-label">知识库</div>
+          <a class="nav-item" href="/?page=kb-docs">
+            <i data-lucide="book-open"></i>
+            <span>文档管理</span>
+          </a>
+          <a class="nav-item" href="/?page=kb-ask">
+            <i data-lucide="message-circle-question"></i>
+            <span>问答工作台</span>
+          </a>
+          <a class="nav-item" href="/?page=kb-faqs">
+            <i data-lucide="help-circle"></i>
+            <span>FAQ 管理</span>
+          </a>
+          <a class="nav-item" href="/?page=kb-gaps">
+            <i data-lucide="search-x"></i>
+            <span>缺口清单</span>
+          </a>
+          <a class="nav-item" href="/?page=kb-metrics">
+            <i data-lucide="bar-chart-3"></i>
+            <span>运营看板</span>
+          </a>
+
+          <div class="nav-label">管理</div>
+            <a class="nav-item active" href="/manual">
+            <i data-lucide="file-code-2"></i>
+            <span>API 参考</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-user">
+          <div class="avatar" id="docsUserAvatar">A</div>
+          <div class="user-copy">
+            <strong id="docsUserName">未登录</strong>
+            <span id="docsUserRole">接口参考</span>
+          </div>
+          <a class="icon-button" href="/" title="控制台" aria-label="控制台">
+            <i data-lucide="layout-dashboard"></i>
+          </a>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1>功能操作手册</h1>
+            <p class="subtitle">点开功能后直接填中文表单即可操作</p>
+          </div>
+          <div class="topbar-actions">
+            <span class="status-pill" id="authPill">
+              <span class="dot"></span>
+              <span class="pill-text">未登录</span>
+            </span>
+            <a class="button secondary" href="/?page=overview">
+              <i data-lucide="layout-dashboard"></i>
+              <span>控制台</span>
+            </a>
+          </div>
+        </header>
+
+        <div class="docs-layout" style="padding-top: 22px">
+          <div class="docs-search" style="width: 100%; max-width: 560px; margin: 0 0 18px">
+            <i data-lucide="search"></i>
+            <input id="searchInput" type="search" placeholder="搜索功能名称或用途" />
+          </div>
+
+          <div class="docs-hero">
+            <div>
+              <p class="eyebrow">HTTP 接口</p>
+              <h1>ETL-Agent 功能操作手册</h1>
+              <p>登录、项目管理、数据连接、管道、知识库等常见操作。</p>
+            </div>
+            <div class="docs-stats" id="docsStats"></div>
+          </div>
+
+          <div id="docsRoot">
+            <div class="loading" id="docsLoading">
+              <i data-lucide="loader-circle"></i>
+              <span>正在加载接口定义</span>
+            </div>
+          </div>
+
+          <div class="footer-note">
+            <i data-lucide="file-code-2"></i>
+            <span>ETL-Agent · 功能操作手册</span>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/ui/vendor/lucide.min.js?v=35"></script>
+    <script src="/static/ui/docs.js?v=40"></script>
+  </body>
+</html>

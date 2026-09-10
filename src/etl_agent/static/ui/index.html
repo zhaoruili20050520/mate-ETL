@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ETL-Agent 控制台</title>
+    <link rel="stylesheet" href="/static/ui/styles.css?v=37" />
+  </head>
+  <body>
+    <div class="mobile-backdrop" id="backdrop" hidden></div>
+
+    <div class="app-shell" id="appShell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <div class="brand-mark">
+            <i data-lucide="workflow"></i>
+          </div>
+          <div class="brand-copy">
+            <strong>ETL-Agent</strong>
+            <span>数据编排控制台</span>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="主导航">
+          <div class="nav-label">工作台</div>
+          <button class="nav-item active" data-page="overview" data-lucide-layout>
+            <i data-lucide="layout-dashboard"></i>
+            <span>总览</span>
+          </button>
+          <button class="nav-item" data-page="projects">
+            <i data-lucide="boxes"></i>
+            <span>项目</span>
+            <span class="count-badge" data-badge="projects">0</span>
+          </button>
+          <button class="nav-item" data-page="connections">
+            <i data-lucide="database"></i>
+            <span>连接</span>
+            <span class="count-badge" data-badge="connections">0</span>
+          </button>
+          <button class="nav-item" data-page="pipelines">
+            <i data-lucide="git-branch"></i>
+            <span>管道</span>
+            <span class="count-badge" data-badge="pipelines">0</span>
+          </button>
+          <button class="nav-item" data-page="runs">
+            <i data-lucide="play-square"></i>
+            <span>执行记录</span>
+            <span class="count-badge" data-badge="runs">0</span>
+          </button>
+
+          <div class="nav-label">知识库</div>
+          <button class="nav-item" data-page="kb-docs">
+            <i data-lucide="book-open"></i>
+            <span>文档管理</span>
+          </button>
+          <button class="nav-item" data-page="kb-ask">
+            <i data-lucide="message-circle-question"></i>
+            <span>问答工作台</span>
+          </button>
+          <button class="nav-item" data-page="kb-faqs">
+            <i data-lucide="help-circle"></i>
+            <span>FAQ 管理</span>
+          </button>
+          <button class="nav-item" data-page="kb-gaps">
+            <i data-lucide="search-x"></i>
+            <span>缺口清单</span>
+          </button>
+          <button class="nav-item" data-page="kb-metrics">
+            <i data-lucide="bar-chart-3"></i>
+            <span>运营看板</span>
+          </button>
+          <button class="nav-item" data-page="kb-admin" id="kbAdminNav" hidden>
+            <i data-lucide="shield-check"></i>
+            <span>组织与权限</span>
+          </button>
+
+          <div class="nav-label">管理</div>
+          <button class="nav-item" data-page="system">
+            <i data-lucide="activity"></i>
+            <span>系统状态</span>
+          </button>
+          <a class="nav-item" href="/manual">
+            <i data-lucide="file-code-2"></i>
+            <span>API 参考</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-user">
+          <div class="avatar" id="userAvatar">A</div>
+          <div class="user-copy">
+            <strong id="userName">未登录</strong>
+            <span id="userRole">本地环境</span>
+          </div>
+          <button class="icon-button" id="logoutButton" title="退出登录" aria-label="退出登录">
+            <i data-lucide="log-out"></i>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <button class="icon-button mobile-menu" id="menuButton" aria-label="打开菜单">
+            <i data-lucide="menu"></i>
+          </button>
+          <div>
+            <h1 id="pageTitle">总览</h1>
+            <p class="subtitle" id="pageSubtitle">ETL 管道从生成到发布的可视化入口</p>
+          </div>
+          <div class="topbar-actions">
+            <span class="status-pill" id="servicePill">
+              <span class="dot"></span>
+              <span class="pill-text">检查服务中</span>
+            </span>
+            <button class="icon-button" id="refreshButton" title="刷新" aria-label="刷新">
+              <i data-lucide="refresh-cw"></i>
+            </button>
+            <a class="button secondary" href="/manual">
+              <i data-lucide="file-code-2"></i>
+              <span>API 参考</span>
+            </a>
+          </div>
+        </header>
+
+        <div class="content">
+          <!-- 总览 -->
+          <section class="page active" id="page-overview">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">工作台总览</p>
+                <h2>总览</h2>
+                <p>租户、项目、数据连接、管道和最近执行状态的统一视图。</p>
+              </div>
+              <div class="page-actions">
+                <button class="button secondary" id="overviewRefresh">
+                  <i data-lucide="refresh-cw"></i>
+                  <span>刷新</span>
+                </button>
+                <a class="button accent" href="/manual">
+                  <i data-lucide="terminal"></i>
+                  <span>打开 API</span>
+                </a>
+              </div>
+            </div>
+
+            <div class="stat-grid">
+              <div class="stat-card" style="--stat-soft: #e7f6f3; --stat-color: #0f766e">
+                <div class="stat-icon"><i data-lucide="building-2"></i></div>
+                <strong id="statTenants">-</strong>
+                <span>租户</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #fff6df; --stat-color: #d97706">
+                <div class="stat-icon"><i data-lucide="boxes"></i></div>
+                <strong id="statProjects">-</strong>
+                <span>项目</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #f0ecff; --stat-color: #6d4fc4">
+                <div class="stat-icon"><i data-lucide="database"></i></div>
+                <strong id="statConnections">-</strong>
+                <span>数据连接</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #e6f0ff; --stat-color: #2563eb">
+                <div class="stat-icon"><i data-lucide="git-branch"></i></div>
+                <strong id="statPipelines">-</strong>
+                <span>管道</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #e7f8f0; --stat-color: #059669">
+                <div class="stat-icon"><i data-lucide="play-square"></i></div>
+                <strong id="statRuns">-</strong>
+                <span>执行记录</span>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>发布链路</h3>
+                <p class="panel-sub">从需求到正式表发布</p>
+              </div>
+              <div class="flow-grid" id="flowGrid"></div>
+            </div>
+
+            <div class="split-grid">
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>最近执行</h3>
+                  <p class="panel-sub" id="runSummary">暂无数据</p>
+                  <div class="spacer"></div>
+                  <button class="button ghost" data-goto="runs">查看全部</button>
+                </div>
+                <div class="panel-body data-table-wrap" id="recentRuns"></div>
+              </div>
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>依赖服务</h3>
+                  <div class="spacer"></div>
+                  <button class="button ghost" data-goto="system">详情</button>
+                </div>
+                <div class="panel-body" id="systemSummary"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 项目 -->
+          <section class="page" id="page-projects">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">项目管理</p>
+                <h2>项目</h2>
+                <p>每个项目拥有独立的数据连接、管道和执行范围。</p>
+              </div>
+              <div class="page-actions">
+                <button class="button accent" id="createProjectButton">
+                  <i data-lucide="plus"></i>
+                  <span>新建项目</span>
+                </button>
+              </div>
+            </div>
+            <div class="panel" id="createProjectPanel" hidden>
+              <div class="panel-head">
+                <h3 id="projectFormTitle">新建项目</h3>
+              </div>
+              <div class="panel-body">
+                <div class="field">
+                  <label for="projectNameInput">项目名称</label>
+                  <div class="input-wrap">
+                    <i data-lucide="tag"></i>
+                    <input id="projectNameInput" type="text" placeholder="例如：订单同步" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="projectDescInput">说明</label>
+                  <div class="input-wrap">
+                    <i data-lucide="align-left"></i>
+                    <textarea id="projectDescInput" placeholder="项目用途、边界或备注"></textarea>
+                  </div>
+                </div>
+                <div class="page-actions">
+                  <button class="button secondary" id="cancelCreateProject">取消</button>
+                  <button class="button accent" id="saveProjectButton">
+                    <i data-lucide="check"></i>
+                    <span>保存</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="project-card-grid" id="projectCards"></div>
+          </section>
+
+          <!-- 连接 -->
+          <section class="page" id="page-connections">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">数据连接</p>
+                <h2>数据连接</h2>
+                <p>PostgreSQL、MySQL、Doris 等数据源的连接与测试状态。</p>
+              </div>
+              <div class="page-actions">
+                <button class="button accent" id="createConnectionButton">
+                  <i data-lucide="plus"></i>
+                  <span>新增连接</span>
+                </button>
+              </div>
+            </div>
+            <div class="panel" id="connectionFormPanel" hidden>
+              <div class="panel-head">
+                <h3 id="connectionFormTitle">新增数据连接</h3>
+              </div>
+              <div class="panel-body">
+                <div class="kb-import-grid">
+                  <div class="field">
+                    <label for="clarifySourceConnection">源连接</label>
+                    <div class="input-wrap">
+                      <i data-lucide="database"></i>
+                      <select id="clarifySourceConnection"></select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="clarifyTargetConnection">目标连接</label>
+                    <div class="input-wrap">
+                      <i data-lucide="database"></i>
+                      <select id="clarifyTargetConnection"></select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="connProjectId">所属项目</label>
+                    <div class="input-wrap">
+                      <i data-lucide="boxes"></i>
+                      <select id="connProjectId"></select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="connNameInput">连接名称</label>
+                    <div class="input-wrap">
+                      <i data-lucide="tag"></i>
+                      <input id="connNameInput" type="text" placeholder="例如：订单MySQL" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="connTypeInput">数据库类型</label>
+                    <div class="input-wrap">
+                      <i data-lucide="database"></i>
+                      <select id="connTypeInput">
+                        <option value="postgresql">PostgreSQL</option>
+                        <option value="mysql">MySQL</option>
+                        <option value="doris">Doris</option>
+                        <option value="clickhouse">ClickHouse</option>
+                        <option value="oracle">Oracle</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="connHostInput">主机地址</label>
+                    <div class="input-wrap">
+                      <i data-lucide="server"></i>
+                      <input id="connHostInput" type="text" placeholder="例如：127.0.0.1" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="connPortInput">端口</label>
+                    <div class="input-wrap">
+                      <i data-lucide="plug"></i>
+                      <input id="connPortInput" type="number" value="3306" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="connDatabaseInput">数据库名</label>
+                    <div class="input-wrap">
+                      <i data-lucide="database"></i>
+                      <input id="connDatabaseInput" type="text" placeholder="例如：testdb" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="connUserInput">用户名</label>
+                    <div class="input-wrap">
+                      <i data-lucide="user-round"></i>
+                      <input id="connUserInput" type="text" placeholder="数据库用户名" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="connPasswordInput">密码</label>
+                    <div class="input-wrap">
+                      <i data-lucide="lock-keyhole"></i>
+                      <input id="connPasswordInput" type="password" placeholder="数据库密码" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="connDescInput">说明</label>
+                    <div class="input-wrap">
+                      <i data-lucide="align-left"></i>
+                      <input id="connDescInput" type="text" placeholder="可选备注" />
+                    </div>
+                  </div>
+                </div>
+                <div class="page-actions">
+                  <button class="button secondary" id="cancelCreateConnection">取消</button>
+                  <button class="button accent" id="saveConnectionButton">
+                    <i data-lucide="check"></i>
+                    <span>保存连接</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <h3>连接列表</h3>
+                <p class="panel-sub">只显示所选项目下的连接</p>
+                <div class="spacer"></div>
+                <select id="connectionProjectFilter" class="kb-select"></select>
+              </div>
+              <div class="panel-body data-table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>连接</th>
+                      <th>类型</th>
+                      <th>地址</th>
+                      <th>所属项目</th>
+                      <th>最近测试</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="connectionsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 管道 -->
+          <section class="page" id="page-pipelines">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">管道管理</p>
+                <h2>管道</h2>
+                <p>自然语言需求生成并冻结后的 ETL 管道版本。</p>
+              </div>
+            </div>
+            <div class="panel" id="pipelineClarifyPanel" hidden>
+              <div class="panel-head">
+                <h3>补充管道信息</h3>
+              </div>
+              <div class="panel-body">
+                <div class="kb-import-grid">
+                  <div class="field">
+                    <label for="clarifySourceSchema">源数据库/模式</label>
+                    <div class="input-wrap">
+                      <i data-lucide="database"></i>
+                      <input id="clarifySourceSchema" type="text" placeholder="例如：testdb" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="clarifySourceTable">源数据表</label>
+                    <div class="input-wrap">
+                      <i data-lucide="table-2"></i>
+                      <input id="clarifySourceTable" type="text" placeholder="例如：test_users" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="clarifyTargetSchema">目标数据库/模式</label>
+                    <div class="input-wrap">
+                      <i data-lucide="database"></i>
+                      <input id="clarifyTargetSchema" type="text" placeholder="例如：etl_target" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="clarifyTargetTable">目标数据表</label>
+                    <div class="input-wrap">
+                      <i data-lucide="table-2"></i>
+                      <input id="clarifyTargetTable" type="text" placeholder="例如：test_users" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="clarifySyncMode">同步方式</label>
+                    <div class="input-wrap">
+                      <i data-lucide="refresh-cw"></i>
+                      <select id="clarifySyncMode">
+                        <option value="full">全量同步</option>
+                        <option value="incremental">增量同步</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="clarifyPrimaryKeys">主键字段</label>
+                    <div class="input-wrap">
+                      <i data-lucide="key-round"></i>
+                      <input id="clarifyPrimaryKeys" type="text" placeholder="多个字段用逗号分隔" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="clarifyWatermark">增量字段</label>
+                    <div class="input-wrap">
+                      <i data-lucide="clock"></i>
+                      <input id="clarifyWatermark" type="text" placeholder="增量同步时填写" />
+                    </div>
+                  </div>
+                </div>
+                <div class="page-actions">
+                  <button class="button secondary" id="cancelClarifyPipeline">取消</button>
+                  <button class="button accent" id="saveClarifyPipeline">
+                    <i data-lucide="check"></i>
+                    <span>保存并继续生成</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-body data-table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>管道</th>
+                      <th>状态</th>
+                      <th>所属项目</th>
+                      <th>更新时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pipelinesBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 执行记录 -->
+          <section class="page" id="page-runs">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">执行记录</p>
+                <h2>执行记录</h2>
+                <p>提交、运行、质量检查、发布与回滚的完整状态。</p>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-body data-table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>执行 ID</th>
+                      <th>状态</th>
+                      <th>所属项目</th>
+                      <th>开始时间</th>
+                      <th>完成时间</th>
+                      <th>SeaTunnel</th>
+                    </tr>
+                  </thead>
+                  <tbody id="runsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 系统状态 -->
+          <section class="page" id="page-system">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">系统状态</p>
+                <h2>系统状态</h2>
+                <p>控制面与数据面依赖的运行状态。</p>
+              </div>
+            </div>
+            <div class="stat-grid">
+              <div class="stat-card" style="--stat-soft: #e6f0ff; --stat-color: #2563eb">
+                <div class="stat-icon"><i data-lucide="database"></i></div>
+                <strong id="dbState">-</strong>
+                <span>PostgreSQL</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #fff6df; --stat-color: #d97706">
+                <div class="stat-icon"><i data-lucide="zap"></i></div>
+                <strong id="redisState">-</strong>
+                <span>Redis</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #f0ecff; --stat-color: #6d4fc4">
+                <div class="stat-icon"><i data-lucide="ship"></i></div>
+                <strong id="seatunnelState">-</strong>
+                <span>SeaTunnel</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #e7f6f3; --stat-color: #0f766e">
+                <div class="stat-icon"><i data-lucide="shield-check"></i></div>
+                <strong id="versionLabel">v0.1</strong>
+                <span>服务版本</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #e7f8f0; --stat-color: #059669">
+                <div class="stat-icon"><i data-lucide="network"></i></div>
+                <strong id="envLabel">dev</strong>
+                <span>运行环境</span>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <h3>依赖详情</h3>
+              </div>
+              <div class="panel-body" id="systemDetails"></div>
+            </div>
+          </section>
+
+          <!-- 知识库 - 文档管理 -->
+          <section class="page" id="page-kb-docs">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">知识库</p>
+                <h2>文档管理</h2>
+                <p>导入文档后自动分块并建立检索索引，支持四维权限控制。</p>
+              </div>
+              <div class="page-actions">
+                <button class="button secondary" id="kbLoadDemo">
+                  <i data-lucide="wand-2"></i>
+                  <span>载入示例</span>
+                </button>
+                <button class="button secondary" id="kbBatchImport">
+                  <i data-lucide="files"></i>
+                  <span>批量导入</span>
+                </button>
+                <button class="button accent" id="kbImportDoc">
+                  <i data-lucide="upload"></i>
+                  <span>导入文档</span>
+                </button>
+              </div>
+            </div>
+            <div class="panel" id="kbImportPanel" hidden>
+              <div class="panel-head">
+                <h3>导入新文档</h3>
+              </div>
+              <div class="panel-body">
+                <div class="kb-import-grid">
+                  <div class="field">
+                    <label for="kbDocTitle">文档标题</label>
+                    <div class="input-wrap">
+                      <i data-lucide="type"></i>
+                      <input id="kbDocTitle" type="text" placeholder="例如：数据治理规范" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="kbDocVisibility">访问范围</label>
+                    <div class="input-wrap">
+                      <i data-lucide="shield"></i>
+                      <select id="kbDocVisibility">
+                        <option value="public">全局公开</option>
+                        <option value="tenant">租户内可用</option>
+                        <option value="restricted">按部门/角色/个人授权</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="kb-import-grid">
+                  <div class="field">
+                    <label for="kbDocDepartment">允许部门（逗号分隔）</label>
+                    <div class="input-wrap">
+                      <i data-lucide="building-2"></i>
+                      <input id="kbDocDepartment" type="text" placeholder="人力资源部,财务部" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="kbDocRoles">允许角色（逗号分隔）</label>
+                    <div class="input-wrap">
+                      <i data-lucide="users"></i>
+                      <input id="kbDocRoles" type="text" placeholder="knowledge_admin,system_admin" />
+                    </div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="kbDocUsers">允许用户 ID（逗号分隔，可选）</label>
+                  <div class="input-wrap">
+                    <i data-lucide="user-check"></i>
+                    <input id="kbDocUsers" type="text" placeholder="用户 UUID，可留空" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="kbDocContent">文档内容</label>
+                  <div class="input-wrap">
+                    <i data-lucide="file-text"></i>
+                    <textarea id="kbDocContent" placeholder="粘贴文档正文内容，系统将自动分块..."></textarea>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="kbDocChunkSize">分类标签</label>
+                  <div class="input-wrap">
+                    <i data-lucide="tag"></i>
+                    <input id="kbDocChunkSize" type="text" placeholder="例如：数据治理" />
+                  </div>
+                </div>
+                <div class="page-actions">
+                  <button class="button secondary" id="kbCancelImport">取消</button>
+                  <button class="button accent" id="kbSubmitDoc">
+                    <i data-lucide="check"></i>
+                    <span>导入并分块</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="panel" id="kbBatchPanel" hidden>
+              <div class="panel-head">
+                <h3>批量导入文档</h3>
+                <p class="panel-sub">每篇文档使用单独一行“---”分隔</p>
+              </div>
+              <div class="panel-body">
+                <div class="field">
+                  <label for="kbBatchContent">文档批次</label>
+                  <textarea id="kbBatchContent" rows="10" placeholder="差旅报销标准&#10;分类：财务制度&#10;访问范围：public&#10;正文...&#10;---&#10;数据安全规范&#10;分类：数据治理&#10;部门：数据中心&#10;正文..."></textarea>
+                </div>
+                <div class="page-actions">
+                  <button class="button secondary" id="kbCancelBatch">取消</button>
+                  <button class="button accent" id="kbSubmitBatch">
+                    <i data-lucide="check"></i>
+                    <span>批量导入</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="panel" id="kbChunksPanel" hidden>
+              <div class="panel-head">
+                <h3 id="kbChunksTitle">文档分块</h3>
+                <p class="panel-sub">调整内容与全局、部门、角色、个人四维权限</p>
+                <div class="spacer"></div>
+                <button class="button ghost" id="kbCloseChunks">
+                  <i data-lucide="x"></i><span>关闭</span>
+                </button>
+              </div>
+              <div class="panel-body" id="kbChunksBody"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <h3>文档列表</h3>
+                <p class="panel-sub" id="kbDocsSummary">加载中...</p>
+              </div>
+              <div class="panel-body data-table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>标题</th>
+                      <th>状态</th>
+                      <th>分块数</th>
+                      <th>部门</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="kbDocsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 知识库 - 问答工作台 -->
+          <section class="page" id="page-kb-ask">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">知识库</p>
+                <h2>问答工作台</h2>
+                <p>向知识库提问，系统将检索文档分块和已发布 FAQ 生成回答。</p>
+              </div>
+            </div>
+            <div class="kb-ask-layout">
+              <div class="panel kb-ask-main">
+                <div class="panel-head">
+                  <h3>提问</h3>
+                </div>
+                <div class="panel-body">
+                  <div class="kb-chat-log" id="kbChatLog">
+                    <div class="empty-state">
+                      <div class="empty-icon"><i data-lucide="message-square"></i></div>
+                      <strong>开始提问</strong>
+                      <p>输入问题，系统将从知识库检索相关内容并生成回答</p>
+                    </div>
+                  </div>
+                  <div class="kb-ask-input-bar">
+                    <div class="input-wrap">
+                      <i data-lucide="message-circle"></i>
+                      <input id="kbAskInput" type="text" placeholder="输入问题..." />
+                    </div>
+                    <button class="button accent" id="kbAskSubmit">
+                      <i data-lucide="send"></i>
+                      <span>提问</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="panel kb-ask-side">
+                <div class="panel-head">
+                  <h3>检索详情</h3>
+                </div>
+                <div class="panel-body" id="kbAskDetail">
+                  <p class="kb-muted-text">提问后将显示命中的分块和审计信息。</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 知识库 - FAQ 管理 -->
+          <section class="page" id="page-kb-faqs">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">知识库</p>
+                <h2>FAQ 管理</h2>
+                <p>聚类候选 FAQ 可审核为发布或拒绝，已发布 FAQ 在问答时优先命中。</p>
+              </div>
+            </div>
+            <div class="split-grid">
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>候选 FAQ</h3>
+                  <p class="panel-sub" id="kbCandidatesSummary">待审核</p>
+                  <div class="spacer"></div>
+                  <button class="button ghost" id="kbClusterFaqs">
+                    <i data-lucide="sparkles"></i>
+                    <span>生成候选</span>
+                  </button>
+                </div>
+                <div class="panel-body data-table-wrap">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>问题</th>
+                        <th>频率</th>
+                        <th>置信度</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="kbCandidatesBody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>已发布 FAQ</h3>
+                  <p class="panel-sub" id="kbPublishedSummary">已发布</p>
+                </div>
+                <div class="panel-body data-table-wrap">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>问题</th>
+                        <th>回答摘要</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="kbPublishedBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 知识库 - 缺口清单 -->
+          <section class="page" id="page-kb-gaps">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">知识库</p>
+                <h2>缺口清单</h2>
+                <p>知识库无法回答的问题自动汇入缺口清单，用于补齐知识盲区。</p>
+              </div>
+              <div class="page-actions">
+                <button class="button secondary" id="kbGapFilterBtn">
+                  <i data-lucide="filter"></i>
+                  <span>筛选</span>
+                </button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <h3>知识缺口列表</h3>
+                <p class="panel-sub" id="kbGapsSummary">加载中...</p>
+                <div class="spacer"></div>
+                <select id="kbGapStatusFilter" class="kb-select">
+                  <option value="">全部状态</option>
+                  <option value="open">待处理</option>
+                  <option value="in_progress">处理中</option>
+                  <option value="resolved">已解决</option>
+                </select>
+              </div>
+              <div class="panel-body data-table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>问题</th>
+                      <th>部门</th>
+                      <th>频率</th>
+                      <th>最高相似度</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="kbGapsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 知识库 - 组织与权限 -->
+          <section class="page" id="page-kb-admin">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">知识库管理</p>
+                <h2>组织与权限</h2>
+                <p>维护部门树、知识角色和操作按钮权限。</p>
+              </div>
+            </div>
+            <div class="split-grid kb-admin-grid">
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>部门树</h3>
+                  <p class="panel-sub" id="kbDepartmentsSummary">加载中...</p>
+                  <div class="spacer"></div>
+                  <button class="button ghost" id="kbDepartmentCreate">
+                    <i data-lucide="plus"></i><span>新增部门</span>
+                  </button>
+                </div>
+                <div class="panel-body">
+                  <div class="kb-inline-form" id="kbDepartmentForm" hidden>
+                    <input id="kbDepartmentName" type="text" placeholder="部门名称" />
+                    <input id="kbDepartmentCode" type="text" placeholder="部门编码" />
+                    <select id="kbDepartmentParent">
+                      <option value="">无上级部门</option>
+                    </select>
+                    <input id="kbDepartmentSort" type="number" min="0" value="0" placeholder="排序" />
+                    <button class="button accent" id="kbSaveDepartment">
+                      <i data-lucide="check"></i><span>保存</span>
+                    </button>
+                    <button class="button secondary" id="kbCancelDepartment">取消</button>
+                  </div>
+                  <div class="kb-tree" id="kbDepartmentTree"></div>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>知识成员</h3>
+                  <p class="panel-sub">为用户分配知识角色与部门</p>
+                </div>
+                <div class="panel-body">
+                  <div class="kb-member-form">
+                    <select id="kbMemberUser"></select>
+                    <select id="kbMemberRole">
+                      <option value="viewer">普通用户 / 提问者</option>
+                      <option value="knowledge_admin">知识管理员</option>
+                      <option value="system_admin">系统管理员</option>
+                    </select>
+                    <select id="kbMemberDepartment">
+                      <option value="">不指定部门</option>
+                    </select>
+                    <button class="button accent" id="kbSaveMember">
+                      <i data-lucide="user-check"></i><span>保存成员</span>
+                    </button>
+                  </div>
+                  <div class="data-table-wrap">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>用户</th>
+                          <th>知识角色</th>
+                          <th>部门</th>
+                        </tr>
+                      </thead>
+                      <tbody id="kbMemberBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <h3>操作按钮权限</h3>
+                <p class="panel-sub">点击角色下的“配置”调整可见和可执行按钮</p>
+              </div>
+              <div class="panel-body data-table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>角色</th>
+                      <th>已授权操作数</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="kbRolePermissionsBody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel" id="kbRoleEditorPanel" hidden>
+              <div class="panel-head">
+                <h3 id="kbRoleEditorTitle">配置角色权限</h3>
+                <p class="panel-sub" id="kbRoleEditorSummary"></p>
+              </div>
+              <div class="panel-body">
+                <div class="kb-permission-grid" id="kbPermissionGrid"></div>
+                <div class="page-actions">
+                  <button class="button secondary" id="kbCancelRoleEditor">取消</button>
+                  <button class="button accent" id="kbSaveRolePermissions">
+                    <i data-lucide="save"></i><span>保存权限</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 知识库 - 运营看板 -->
+          <section class="page" id="page-kb-metrics">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">知识库</p>
+                <h2>运营看板</h2>
+                <p>问答量、FAQ 沉淀率、缺口收敛趋势与审计记录的统一视图。</p>
+              </div>
+              <div class="page-actions">
+                <button class="button secondary" id="kbMetricsRefresh">
+                  <i data-lucide="refresh-cw"></i>
+                  <span>刷新</span>
+                </button>
+              </div>
+            </div>
+            <div class="stat-grid" id="kbMetricsStats">
+              <div class="stat-card" style="--stat-soft: #e7f6f3; --stat-color: #0f766e">
+                <div class="stat-icon"><i data-lucide="message-circle-question"></i></div>
+                <strong id="kbMetricTotalQs">-</strong>
+                <span>访问次数</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #eef2ff; --stat-color: #4f46e5">
+                <div class="stat-icon"><i data-lucide="users"></i></div>
+                <strong id="kbMetricUniqueUsers">-</strong>
+                <span>独立人数</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #ecfdf5; --stat-color: #059669">
+                <div class="stat-icon"><i data-lucide="blocks"></i></div>
+                <strong id="kbMetricUnits">-</strong>
+                <span>知识单元数</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #fff6df; --stat-color: #d97706">
+                <div class="stat-icon"><i data-lucide="help-circle"></i></div>
+                <strong id="kbMetricFaqHit">-</strong>
+                <span>FAQ 命中</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #f0ecff; --stat-color: #6d4fc4">
+                <div class="stat-icon"><i data-lucide="search-x"></i></div>
+                <strong id="kbMetricOpenGaps">-</strong>
+                <span>未解决缺口</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #e6f0ff; --stat-color: #2563eb">
+                <div class="stat-icon"><i data-lucide="file-text"></i></div>
+                <strong id="kbMetricDocs">-</strong>
+                <span>已发布文档</span>
+              </div>
+              <div class="stat-card" style="--stat-soft: #e7f8f0; --stat-color: #059669">
+                <div class="stat-icon"><i data-lucide="check-check"></i></div>
+                <strong id="kbMetricResolvedGaps">-</strong>
+                <span>已解决缺口</span>
+              </div>
+            </div>
+            <div class="split-grid">
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>运营指标</h3>
+                </div>
+                <div class="panel-body" id="kbMetricsDetail"></div>
+              </div>
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>最近审计</h3>
+                  <div class="spacer"></div>
+                </div>
+                <div class="panel-body data-table-wrap">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>问题</th>
+                        <th>FAQ命中</th>
+                        <th>Token</th>
+                        <th>延迟(ms)</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="kbAuditBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div class="login-view" id="loginView">
+      <div class="login-card">
+        <div class="login-visual">
+          <div class="brand">
+            <div class="brand-mark">
+              <i data-lucide="workflow"></i>
+            </div>
+            <div class="brand-copy">
+              <strong>ETL-Agent</strong>
+              <span>数据编排</span>
+            </div>
+          </div>
+          <h1>让数据管道更快、更稳、更透明地流动</h1>
+          <p>从自然语言需求开始，自动完成元数据识别、配置生成、审批发布与质量监督。</p>
+        </div>
+        <div class="login-form-side">
+          <h2>登录控制台</h2>
+          <p class="login-sub">使用本地开发账号进入工作台</p>
+          <div class="field">
+            <label for="usernameInput">用户名</label>
+            <div class="input-wrap">
+              <i data-lucide="user-round"></i>
+              <input
+                id="usernameInput"
+                type="text"
+                placeholder="请输入用户名"
+                autocomplete="username"
+              />
+            </div>
+          </div>
+          <div class="field">
+            <label for="passwordInput">密码</label>
+            <div class="input-wrap">
+              <i data-lucide="lock-keyhole"></i>
+              <input
+                id="passwordInput"
+                type="password"
+                placeholder="请输入密码"
+                autocomplete="current-password"
+              />
+            </div>
+          </div>
+          <div class="form-hint">
+            <i data-lucide="info"></i>
+            <span>本地开发默认账号 admin / admin123</span>
+          </div>
+          <p class="auth-status" id="authStatus"></p>
+          <button class="button accent" id="loginButton" style="width: 100%">
+            <i data-lucide="log-in"></i>
+            <span>登录</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-region" id="toastRegion"></div>
+
+    <script src="/static/ui/vendor/lucide.min.js?v=35"></script>
+    <script src="/static/ui/app.js?v=40"></script>
+  </body>
+</html>
