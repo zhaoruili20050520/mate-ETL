@@ -205,6 +205,42 @@ def evaluate_l1_case(
             },
         )
 
+    # Non-blocking expectation (e.g. warning-level findings such as a
+    # missing watermark): the gate must report the expected code but must
+    # NOT block the pipeline.  ``should_intercept=False`` plus a non-empty
+    # ``expected_codes`` expresses exactly that.
+    if expected_codes:
+        if not intercepted and (expected_codes & actual_codes):
+            return CaseResult(
+                case_id=case_id,
+                passed=True,
+                score=1.0,
+                message=(
+                    "Correctly warned without blocking. "
+                    f"codes={sorted(expected_codes & actual_codes)}"
+                ),
+                details={
+                    "intercepted": False,
+                    "expected_codes": sorted(expected_codes),
+                    "actual_codes": sorted(actual_codes),
+                },
+            )
+        return CaseResult(
+            case_id=case_id,
+            passed=False,
+            score=0.0,
+            message=(
+                "Warning-level expectation not met "
+                f"(intercepted={intercepted}). expected={sorted(expected_codes)}, "
+                f"actual={sorted(actual_codes)}"
+            ),
+            details={
+                "intercepted": intercepted,
+                "expected_codes": sorted(expected_codes),
+                "actual_codes": sorted(actual_codes),
+            },
+        )
+
     # False-positive check: should NOT be intercepted
     if not intercepted:
         return CaseResult(

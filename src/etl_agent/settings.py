@@ -6,13 +6,20 @@ should import ``settings`` from this file rather than calling os.environ directl
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+logger = logging.getLogger(__name__)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Insecure placeholder kept only for local development convenience.
+DEFAULT_JWT_SECRET_KEY = "change-this-to-a-random-string"
+_PRODUCTION_ENVS = frozenset({"production", "prod"})
 
 
 class Settings(BaseSettings):
@@ -67,10 +74,28 @@ class Settings(BaseSettings):
         alias="CAPABILITY_PRIVATE_KEY_PEM",
     )
 
+    @field_validator("capability_private_key_pem")
+    @classmethod
+    def _normalize_pem(cls, value: str) -> str:
+        """Allow PEM keys to be configured on a single line.
+
+        ``.env`` files usually cannot hold real newlines, so operators
+        write the PEM with literal ``\\n`` escapes.  Without this
+        normalization ``load_pem_private_key`` fails and every process
+        silently falls back to a freshly generated keypair -- which
+        makes tokens issued by the API unverifiable in the worker.
+        """
+        if value and "\\n" in value:
+            return value.replace("\\n", "\n")
+        return value
+
     # ---- JWT ----
-    jwt_secret_key: str = Field(default="change-this-to-a-random-string", alias="JWT_SECRET_KEY")
+    jwt_secret_key: str = Field(default=DEFAULT_JWT_SECRET_KEY, alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
-    jwt_expire_minutes: int = Field(default=480, alias="JWT_EXPIRE_MINUTES")
+    # ``0`` means "never expires": tokens are then signed without an ``exp``
+    # claim and stay valid until JWT_SECRET_KEY is rotated. Use a positive
+    # value for shared or production environments.
+    jwt_expire_minutes: int = Field(default=480, ge=0, alias="JWT_EXPIRE_MINUTES")
 
     # ---- LLM ----
     model_api_key: str = Field(default="", alias="MODEL_API_KEY")
@@ -96,6 +121,20 @@ class Settings(BaseSettings):
 
     # ---- FastAPI ----
     api_v1_prefix: str = Field(default="/api/v1", alias="API_V1_PREFIX")
+
+    def model_post_init(self, __context: object) -> None:
+        """Fail fast on insecure secrets in production; warn in development."""
+        if self.jwt_secret_key == DEFAULT_JWT_SECRET_KEY:
+            if self.env.strip().lower() in _PRODUCTION_ENVS:
+                raise ValueError(
+                    "JWT_SECRET_KEY is still set to the insecure placeholder value. "
+                    "Set the JWT_SECRET_KEY environment variable to a strong random "
+                    "secret before running in production."
+                )
+            logger.warning(
+                "JWT_SECRET_KEY is using the insecure default placeholder. "
+                "Do not use the default secret outside local development."
+            )
 
     # ---- Derived properties ----
     @property

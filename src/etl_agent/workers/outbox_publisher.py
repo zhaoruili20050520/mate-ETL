@@ -280,6 +280,16 @@ def run_publish_cycle(db: Session | None = None) -> int:
             session.close()
 
 
+@celery_app.task(name="etl_agent.publish_outbox")  # type: ignore[untyped-decorator]
+def publish_outbox() -> int:
+    """Celery beat entrypoint: run exactly one outbox publish cycle.
+
+    Registered in ``celery_app.conf.beat_schedule`` as ``publish-outbox``.
+    Returns the number of outbox messages processed in this cycle.
+    """
+    return run_publish_cycle()
+
+
 def run_publisher_loop() -> None:
     """Run the publisher in a continuous polling loop.
 
@@ -306,6 +316,7 @@ if __name__ == "__main__":
 __all__ = [
     "claim_pending_messages",
     "dispatch_message",
+    "publish_outbox",
     "reclaim_stale_claims",
     "run_publish_cycle",
     "run_publisher_loop",

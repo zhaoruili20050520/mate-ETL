@@ -59,17 +59,18 @@ services:
     image: apache/doris:2.1.0-fe
     container_name: etl-agent-doris-fe
     environment:
-      DORIS_FE_ID: "1"
-      DORIS_FE_IP: "0.0.0.0"
+      FE_SERVERS: "fe1:172.19.0.10:9010"
+      FE_ID: "1"
     ports:
       - "8030:8030"   # FE HTTP (Web UI + REST API)
-      - "9020:9020"   # FE query port (MySQL protocol)
+      - "19030:9030"  # FE query port (MySQL protocol)
       - "9010:9010"   # FE edit log
     volumes:
       - dorisfedata:/opt/apache-doris/fe/doris-meta
       - dorisfelogs:/opt/apache-doris/fe/log
     networks:
-      - data-plane
+      data-plane:
+        ipv4_address: 172.19.0.10
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8030/api/health || exit 1"]
       interval: 10s
@@ -81,21 +82,21 @@ services:
     image: apache/doris:2.1.0-be
     container_name: etl-agent-doris-be
     environment:
-      DORIS_BE_ID: "1"
-      DORIS_BE_IP: "etl-agent-doris-be"
-      DORIS_FE_IP: "etl-agent-doris-fe"
+      FE_SERVERS: "fe1:172.19.0.10:9010"
+      BE_ADDR: "172.19.0.11:9050"
     ports:
-      - "8040:8040"   # BE HTTP (REST API)
-      - "9050:9050"   # BE heartbeat
-      - "9060:9060"   # BE Thrift
+      - "19040:8040"   # BE HTTP (REST API)
+      - "19050:9050"  # BE heartbeat
+      - "19060:9060"  # BE Thrift
     volumes:
       - dorisbedata:/opt/apache-doris/be/storage
       - dorisbelogs:/opt/apache-doris/be/log
     depends_on:
       doris:
-        condition: service_started
+        condition: service_healthy
     networks:
-      - data-plane
+      data-plane:
+        ipv4_address: 172.19.0.11
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8040/api/health || exit 1"]
       interval: 10s
@@ -149,6 +150,9 @@ networks:
   # Data plane: MySQL, Doris, SeaTunnel (source/target data sources)
   data-plane:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
 
 volumes:
   pgdata:

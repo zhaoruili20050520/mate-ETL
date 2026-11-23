@@ -215,7 +215,9 @@ L1_CASES: list[dict[str, Any]] = [
             },
         },
         "expect": {
-            "should_intercept": True,
+            # 缺水位列只是风险提示，质量门禁按设计只告警不拦截，
+            # 因此这里要求"报告该告警且不阻塞"。
+            "should_intercept": False,
             "expected_codes": ["MISSING_WATERMARK"],
         },
     },
@@ -248,7 +250,8 @@ L1_CASES: list[dict[str, Any]] = [
             },
         },
         "expect": {
-            "should_intercept": True,
+            # 缺质量契约属于告警级（不阻塞冻结），断言"报告告警但不拦截"。
+            "should_intercept": False,
             "expected_codes": ["MISSING_QUALITY_CONTRACT"],
         },
     },
@@ -311,7 +314,8 @@ L1_CASES: list[dict[str, Any]] = [
             },
         },
         "expect": {
-            "should_intercept": True,
+            # 缺影子表属于告警级（不阻塞冻结），断言"报告告警但不拦截"。
+            "should_intercept": False,
             "expected_codes": ["MISSING_SHADOW_TABLE"],
         },
     },

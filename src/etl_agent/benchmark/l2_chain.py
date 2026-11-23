@@ -21,26 +21,29 @@ logger = logging.getLogger(__name__)
 def _check_infra() -> bool:
     """Check if Docker infrastructure is available.
 
-    Tests MySQL (3307) and Doris (9030) connectivity.
+    Probes MySQL and Doris FE (MySQL protocol).  The port defaults follow
+    ``docker-compose.yml`` (MySQL ``3307``, Doris FE ``19030``) and can be
+    overridden with ``BENCH_MYSQL_PORT`` / ``BENCH_DORIS_PORT``.  The FE
+    query port is ``9030`` inside the container but is published on
+    ``19030`` by compose, so both are probed.
     """
+    import os
     import socket
 
-    mysql_ok = False
-    doris_ok = False
+    def _port_open(port: int) -> bool:
+        try:
+            sock = socket.create_connection(("localhost", port), timeout=2)
+            sock.close()
+            return True
+        except OSError:
+            return False
 
-    try:
-        s = socket.create_connection(("localhost", 3307), timeout=2)
-        s.close()
-        mysql_ok = True
-    except Exception:
-        pass
+    mysql_ports = [int(os.environ.get("BENCH_MYSQL_PORT", 3307))]
+    doris_env = os.environ.get("BENCH_DORIS_PORT")
+    doris_ports = [int(doris_env)] if doris_env else [19030, 9030]
 
-    try:
-        s = socket.create_connection(("localhost", 9030), timeout=2)
-        s.close()
-        doris_ok = True
-    except Exception:
-        pass
+    mysql_ok = any(_port_open(port) for port in mysql_ports)
+    doris_ok = any(_port_open(port) for port in doris_ports)
 
     if not (mysql_ok and doris_ok):
         logger.warning(

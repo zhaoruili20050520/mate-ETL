@@ -43,6 +43,7 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    # Seconds until expiry; 0 means the token never expires.
     expires_in: int
     user_id: uuid.UUID
     username: str

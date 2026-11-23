@@ -44,6 +44,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 ALGORITHM = settings.jwt_algorithm
 SECRET_KEY = settings.jwt_secret_key
+# 0 = tokens never expire (no ``exp`` claim is written).
 EXPIRE_MINUTES = settings.jwt_expire_minutes
 
 
@@ -55,7 +56,11 @@ def create_access_token(
     project_id: uuid.UUID | None = None,
     role: str | None = None,
 ) -> str:
-    """Sign a JWT with user identity and context information."""
+    """Sign a JWT with user identity and context information.
+
+    When ``JWT_EXPIRE_MINUTES`` is 0 the token carries no ``exp`` claim, so it
+    never expires (it only becomes invalid if ``JWT_SECRET_KEY`` is rotated).
+    """
     now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": str(user_id),
@@ -64,8 +69,9 @@ def create_access_token(
         "project_id": str(project_id) if project_id else None,
         "role": role,
         "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(minutes=EXPIRE_MINUTES)).timestamp()),
     }
+    if EXPIRE_MINUTES > 0:
+        payload["exp"] = int((now + timedelta(minutes=EXPIRE_MINUTES)).timestamp())
     return cast(str, jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM))
 
 
@@ -177,7 +183,7 @@ def login(
     return {
         "access_token": token,
         "token_type": "bearer",
-        "expires_in": EXPIRE_MINUTES * 60,
+        "expires_in": EXPIRE_MINUTES * 60,  # 0 = the token never expires
         "user_id": user.id,
         "username": user.username,
         "tenant_id": resolved_tenant_id,

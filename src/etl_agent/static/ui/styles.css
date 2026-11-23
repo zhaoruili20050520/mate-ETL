@@ -491,6 +491,22 @@ svg {
   box-shadow: var(--shadow-sm);
 }
 
+.panel.kb-panel-flash {
+  animation: kb-panel-flash 1.2s ease-out;
+}
+
+@keyframes kb-panel-flash {
+  0% {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.28);
+  }
+
+  100% {
+    border-color: var(--line);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
 .panel-head {
   display: flex;
   align-items: center;

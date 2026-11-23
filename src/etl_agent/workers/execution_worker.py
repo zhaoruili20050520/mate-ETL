@@ -259,15 +259,44 @@ def execute_seatunnel_job(
                 token=capability_token or None,
             )
         except ConflictError as exc:
-            # The capability was already consumed by another worker
-            # (replay/duplicate dispatch).  This is NOT a failure --
-            # the other worker may still be running successfully.
-            logger.info(
-                "Capability %s already consumed (replay), skipping: %s",
-                capability_id[:12],
-                str(exc)[:200],
+            detail = str(exc)
+            if "consumed by another process" in detail:
+                # The capability was already consumed by another worker
+                # (replay/duplicate dispatch).  This is NOT a failure --
+                # the other worker may still be running successfully.
+                logger.info(
+                    "Capability %s already consumed (replay), skipping: %s",
+                    capability_id[:12],
+                    detail[:200],
+                )
+                return {"outbox_id": outbox_id, "status": "already_consumed"}
+
+            # Any other conflict (signature mismatch, expiry, wrong run,
+            # non-consumable state) means the run can never start.  Treat
+            # it as a hard failure instead of silently dropping it, which
+            # used to leave the ExecutionRun stuck in ``pending`` forever.
+            error_msg = f"Capability consumption rejected: {detail[:256]}"
+            logger.error(error_msg)
+            run.status = ExecutionStatus.failed
+            run.error_message = error_msg
+            _write_event(
+                db,
+                run_uuid,
+                ExecutionEventType.job_failed,
+                error_msg,
+                severity="error",
             )
-            return {"outbox_id": outbox_id, "status": "already_consumed"}
+            log_event(
+                db,
+                event_type=EvidenceEventType.execution_failed,
+                execution_run_id=run.id,
+                tenant_id=run.tenant_id,
+                project_id=run.project_id,
+                details={"error": error_msg, "phase": "capability_verify"},
+            )
+            _finalize_outbox(outbox, OutboxStatus.failed, error=error_msg)
+            db.commit()
+            return {"outbox_id": outbox_id, "status": "capability_rejected"}
 
         except NotFoundError as exc:
             error_msg = f"Capability not found: {str(exc)[:256]}"

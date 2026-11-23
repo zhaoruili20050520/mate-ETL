@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from redis import Redis
@@ -25,6 +26,7 @@ from etl_agent.api.v1.preparations import router as preparations_router
 from etl_agent.api.v1.project import router as project_router
 from etl_agent.api.v1.tenant import router as tenant_router
 from etl_agent.core.error_handlers import register_exception_handlers
+from etl_agent.core.openapi_zh import INFO_DESCRIPTION, INFO_TITLE, localize_openapi
 from etl_agent.db.session import engine
 from etl_agent.settings import settings
 
@@ -35,11 +37,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="ETL-Agent",
-    description="AI-driven ETL pipeline generation and governance platform",
+    title=INFO_TITLE,
+    description=INFO_DESCRIPTION,
     version="0.1.0",
     docs_url=None,
-    redoc_url="/redoc",
+    redoc_url=None,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -61,6 +63,19 @@ app.include_router(permissions_router, prefix=settings.api_v1_prefix)
 
 # Register global exception handlers for uniform error responses
 register_exception_handlers(app)
+
+_original_openapi = app.openapi
+
+
+def _localized_openapi() -> dict[str, Any]:
+    """Return the OpenAPI schema with every human-readable text in Chinese."""
+    if app.openapi_schema:
+        return app.openapi_schema
+    app.openapi_schema = localize_openapi(_original_openapi())
+    return app.openapi_schema
+
+
+app.openapi = _localized_openapi  # type: ignore[method-assign]
 
 
 def _check_database() -> bool:
@@ -141,6 +156,15 @@ def operation_manual_page() -> FileResponse:
     )
 
 
+@app.get("/redoc", include_in_schema=False)
+def interface_documentation_page() -> FileResponse:
+    """Serve the Chinese interface documentation (ReDoc) page."""
+    return FileResponse(
+        UI_DIR / "redoc.html",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+    )
+
+
 @app.get("/docs", include_in_schema=False)
 def legacy_docs_redirect() -> RedirectResponse:
     """Keep the old /docs URL working while moving to /manual."""
@@ -151,8 +175,22 @@ def legacy_docs_redirect() -> RedirectResponse:
     )
 
 
+class NoCacheStaticFiles(StaticFiles):
+    """Serve static assets with ``no-cache`` so the browser always revalidates.
+
+    Files under ``/static`` used to be served without ``Cache-Control``. Browsers
+    then applied heuristic freshness and kept executing an old ``app.js`` under
+    the same ``?v=`` URL, which made shipped frontend fixes look ignored.
+    """
+
+    def file_response(self, *args: Any, **kwargs: Any) -> Response:
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return response
+
+
 app.mount(
     "/static",
-    StaticFiles(directory=BASE_DIR / "static"),
+    NoCacheStaticFiles(directory=BASE_DIR / "static"),
     name="static",
 )

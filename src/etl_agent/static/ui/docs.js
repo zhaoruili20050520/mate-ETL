@@ -1,4 +1,29 @@
 const TOKEN_KEY = "etl_agent_token_v2";
+const SESSION_KEY = "etl_agent_session_v2";
+
+// Mirrors app.js: read the persistent localStorage copy first, then fall back
+// to sessionStorage so tabs opened before the switch keep working.
+function readStoredToken() {
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || "";
+}
+
+function readStoredSession() {
+  return localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY) || "null";
+}
+
+function storeAuth(token, session) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
+function clearStoredAuth() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+}
 
 const OPERATION_LABELS = {
   register_api_v1_auth_register_post: "注册新用户",
@@ -35,6 +60,7 @@ const OPERATION_LABELS = {
   list_versions_api_v1_pipelines__pipeline_id__versions_get: "查询管道版本列表",
   list_pipelines_api_v1_pipelines_get: "查询管道列表",
   get_pipeline_api_v1_pipelines__pipeline_id__get: "查询管道详情",
+  delete_pipeline_api_v1_pipelines__pipeline_id__delete: "删除管道",
   get_version_api_v1_pipelines__pipeline_id__versions__version_id__get: "查询管道版本详情",
   submit_approval_api_v1_preparations__preparation_id__approvals_post: "提交审批或驳回",
   list_approvals_api_v1_preparations__preparation_id__approvals_get: "查询审批记录",
@@ -59,13 +85,15 @@ const OPERATION_LABELS = {
   update_chunk_endpoint_api_v1_knowledge_chunks__chunk_id__put: "修改文档分块",
   delete_chunk_endpoint_api_v1_knowledge_chunks__chunk_id__delete: "删除文档分块",
   ask_question_api_v1_knowledge_ask_post: "向知识库提问",
-  trigger_clustering_api_v1_knowledge_cluster_post: "生成 FAQ 候选",
-  list_faq_candidates_api_v1_knowledge_faqs_candidates_get: "查看 FAQ 候选",
-  delete_faq_candidate_endpoint_api_v1_knowledge_faqs_candidates__candidate_id__delete: "删除 FAQ 候选",
-  publish_faq_candidate_api_v1_knowledge_faqs__candidate_id__publish_post: "发布 FAQ",
-  reject_faq_candidate_api_v1_knowledge_faqs__candidate_id__reject_post: "拒绝 FAQ 候选",
-  list_published_faqs_api_v1_knowledge_faqs_published_get: "查看已发布 FAQ",
-  delete_published_faq_endpoint_api_v1_knowledge_faqs_published__faq_id__delete: "删除已发布 FAQ",
+  trigger_clustering_api_v1_knowledge_cluster_post: "生成常见问题候选",
+  list_faq_candidates_api_v1_knowledge_faqs_candidates_get: "查看常见问题候选",
+  delete_faq_candidate_endpoint_api_v1_knowledge_faqs_candidates__candidate_id__delete:
+    "删除常见问题候选",
+  publish_faq_candidate_api_v1_knowledge_faqs__candidate_id__publish_post: "发布常见问题",
+  reject_faq_candidate_api_v1_knowledge_faqs__candidate_id__reject_post: "驳回常见问题候选",
+  list_published_faqs_api_v1_knowledge_faqs_published_get: "查看已发布常见问题",
+  delete_published_faq_endpoint_api_v1_knowledge_faqs_published__faq_id__delete:
+    "删除已发布常见问题",
   list_knowledge_gaps_api_v1_knowledge_gaps_get: "查看知识缺口",
   delete_knowledge_gap_api_v1_knowledge_gaps__gap_id__delete: "删除知识缺口",
   resolve_knowledge_gap_api_v1_knowledge_gaps__gap_id__resolve_post: "标记缺口已解决",
@@ -74,6 +102,28 @@ const OPERATION_LABELS = {
   get_metrics_api_v1_knowledge_metrics_get: "查看运营数据",
   list_members_api_v1_knowledge_members_get: "查看知识库成员",
   assign_member_api_v1_knowledge_members_post: "设置知识库成员",
+  update_project_api_v1_projects__project_id__patch: "更新项目信息",
+  update_connection_api_v1_projects__project_id__connections__connection_id__patch:
+    "更新数据连接",
+  get_knowledge_access_api_v1_knowledge_access_get: "查询知识库访问范围",
+  create_documents_batch_api_v1_knowledge_documents_batch_post: "批量新增知识文档",
+  get_department_tree_api_v1_knowledge_departments_tree_get: "查询部门树",
+  create_department_endpoint_api_v1_knowledge_departments_post: "创建部门",
+  update_department_endpoint_api_v1_knowledge_departments__department_id__patch: "更新部门",
+  delete_department_endpoint_api_v1_knowledge_departments__department_id__delete: "删除部门",
+  get_role_permissions_api_v1_knowledge_role_permissions_get: "查询角色权限",
+  put_role_permissions_api_v1_knowledge_role_permissions_put: "设置角色权限",
+  get_benchmark_report_api_v1_benchmark__get: "查看评测报告",
+  get_benchmark_text_api_v1_benchmark_text_get: "查看评测报告文本",
+  list_depts_api_v1_departments_get: "查询部门列表",
+  create_dept_api_v1_departments_post: "创建部门",
+  get_tree_api_v1_departments_tree_get: "查询部门树",
+  update_dept_api_v1_departments__dept_id__put: "更新部门",
+  delete_dept_api_v1_departments__dept_id__delete: "删除部门",
+  list_codes_api_v1_permissions_codes_get: "查询权限码清单",
+  get_role_perms_api_v1_permissions_roles__role_name__get: "查询角色权限",
+  assign_perms_api_v1_permissions_roles__role_name__post: "设置角色权限",
+  get_my_permissions_api_v1_permissions_me_get: "查询我的权限",
   health_check_health_get: "服务健康检查",
 };
 
@@ -85,6 +135,14 @@ const TYPE_LABELS = {
   array: "数组",
   object: "对象",
   null: "空值",
+  anyOf: "多种类型",
+  oneOf: "多种类型",
+  allOf: "组合结构",
+  file: "文件",
+  "date-time": "日期时间",
+  date: "日期",
+  uuid: "唯一标识",
+  "string uuid": "唯一标识",
 };
 
 const FIELD_LABELS = {
@@ -103,8 +161,8 @@ const FIELD_LABELS = {
   pipeline_id: "管道",
   version_id: "版本",
   preparation_id: "执行准备",
-  candidate_id: "FAQ 候选",
-  faq_id: "FAQ",
+  candidate_id: "常见问题候选",
+  faq_id: "常见问题",
   doc_id: "文档",
   chunk_id: "分块",
   gap_id: "缺口",
@@ -145,6 +203,7 @@ const FIELD_LABELS = {
   page_size: "每页数量",
   status: "状态",
   session_id: "会话编号",
+  access_count: "访问次数",
   access_token: "访问令牌",
   token_type: "令牌类型",
   expires_in: "有效时间（秒）",
@@ -224,9 +283,10 @@ const FIELD_LABELS = {
   confidence: "置信度",
   answer: "回答",
   answers: "回答内容",
-  faq_hit: "FAQ命中",
-  faq_hit_count: "FAQ命中次数",
-  faq_hit_rate: "FAQ命中率",
+  faq_hit: "命中常见问题",
+  faq_cache_hit: "是否命中常见问题缓存",
+  faq_hit_count: "常见问题命中次数",
+  faq_hit_rate: "常见问题命中率",
   gap_created: "是否记录缺口",
   missing_permission: "是否缺少权限",
   allowed_chunks: "允许查看的分块",
@@ -237,7 +297,7 @@ const FIELD_LABELS = {
   token_estimate: "预计令牌数",
   open_gaps: "未解决缺口",
   resolved_gaps: "已解决缺口",
-  proposed_faqs: "候选FAQ",
+  proposed_faqs: "常见问题候选数",
   published_documents: "已发布文档",
   blocked_access_count: "权限拦截次数",
   average_latency_ms: "平均耗时（毫秒）",
@@ -254,7 +314,7 @@ const FIELD_LABELS = {
   shadow_rows: "影子表行数",
   shadow_table: "影子表",
   backup_table: "备份表",
-  seatunnel_job_id: "SeaTunnel任务编号",
+  seatunnel_job_id: "SeaTunnel 任务编号",
   capability_id: "授权编号",
   quality_report: "质量报告",
   publish_attempt: "发布记录",
@@ -303,6 +363,21 @@ const FIELD_LABELS = {
   total_rows: "总行数",
   type: "类型",
   value_distribution: "数据分布",
+  created: "新增数量",
+  codes: "代码列表",
+  children: "下级部门",
+  document_ids: "文档编号列表",
+  documents: "文档列表",
+  hot_knowledge: "热门知识",
+  knowledge_units: "知识单元",
+  parent_id: "上级部门编号",
+  permission_code: "权限码",
+  permission_codes: "权限码列表",
+  role_name: "角色名称",
+  top_questions: "高频问题",
+  total_tokens: "令牌总数",
+  users: "允许用户",
+  sort_order: "排序序号",
 };
 
 const VALUE_LABELS = {
@@ -346,6 +421,35 @@ const VALUE_LABELS = {
   P1: "高风险",
   P2: "中风险",
   P3: "低风险",
+  data_owner: "数据负责人",
+  security: "安全管理员",
+  data_checker: "数据复核人",
+  security_checker: "安全复核人",
+  internal: "内部使用",
+  confidential: "机密",
+  archived: "已归档",
+  published: "已发布",
+  submitted: "已提交",
+  committed: "已提交",
+  overwrite: "覆盖写入",
+  append: "追加写入",
+  upsert: "更新或插入",
+  error: "错误",
+  warning: "警告",
+  info: "提示",
+  critical: "严重",
+  untested: "未测试",
+  ok: "正常",
+  degraded: "部分异常",
+  unknown: "未知",
+  approve: "同意",
+  reject: "驳回",
+  low: "低风险",
+  medium: "中风险",
+  high: "高风险",
+  development: "开发环境",
+  staging: "测试环境",
+  production: "生产环境",
 };
 
 let openapi = null;
@@ -397,7 +501,7 @@ function showManualLogin(message = "") {
 }
 
 async function checkAuthStatus() {
-  const token = sessionStorage.getItem(TOKEN_KEY);
+  const token = readStoredToken();
   if (!token) {
     document.getElementById("manualAuthOverlay").hidden = true;
     setAuthHeader(false);
@@ -408,7 +512,7 @@ async function checkAuthStatus() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (response.status === 401) {
-      sessionStorage.removeItem(TOKEN_KEY);
+      clearStoredAuth();
       showManualLogin("登录已失效，请重新登录。");
       return;
     }
@@ -448,16 +552,12 @@ async function manualLogin() {
     if (!response.ok) {
       throw new Error(payload.detail || "账号或密码错误");
     }
-    sessionStorage.setItem(TOKEN_KEY, payload.access_token);
-    sessionStorage.setItem(
-      "etl_agent_session_v2",
-      JSON.stringify({
-        username: payload.username,
-        role: payload.role,
-        tenant_id: payload.tenant_id,
-        project_id: payload.project_id,
-      }),
-    );
+    storeAuth(payload.access_token, {
+      username: payload.username,
+      role: payload.role,
+      tenant_id: payload.tenant_id,
+      project_id: payload.project_id,
+    });
     await checkAuthStatus();
     status.textContent = "";
   } catch (error) {
@@ -470,7 +570,7 @@ async function manualLogin() {
 async function loadOpenapi() {
   const root = document.getElementById("docsRoot");
   try {
-    const response = await fetch("/openapi.json");
+    const response = await fetch("/openapi.json?v=5");
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     openapi = await response.json();
     renderHero();
@@ -535,6 +635,7 @@ function renderDocs() {
       item.operation.summary || "",
       item.operation.description || "",
       item.tags.join(" "),
+      displayTag(item.tags[0]),
     ]
       .join(" ")
       .toLowerCase();
@@ -548,10 +649,25 @@ function renderDocs() {
     grouped.get(tag).push(item);
   });
 
-  const order = ["auth", "tenants", "projects", "connections", "pipelines", "approvals", "execution-runs", "health"];
+  const order = [
+    "认证与用户",
+    "租户管理",
+    "项目与连接",
+    "数据连接与探查",
+    "管道生成",
+    "审批",
+    "执行准备",
+    "执行记录",
+    "知识库",
+    "效果评测",
+    "部门管理",
+    "权限管理",
+    "通用",
+    "健康检查",
+  ];
   const tagNames = [...grouped.keys()].sort((a, b) => {
-    const ai = order.indexOf(a);
-    const bi = order.indexOf(b);
+    const ai = order.indexOf(displayTag(a));
+    const bi = order.indexOf(displayTag(b));
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi) || a.localeCompare(b);
   });
 
@@ -589,13 +705,13 @@ function renderDocs() {
 }
 
 async function enhanceDynamicFields() {
-  const token = sessionStorage.getItem(TOKEN_KEY);
+  const token = readStoredToken();
   if (!token) return;
   try {
     if (!cachedProjects) {
       let session = null;
       try {
-        session = JSON.parse(sessionStorage.getItem("etl_agent_session_v2") || "null");
+        session = JSON.parse(readStoredSession() || "null");
       } catch {
         session = null;
       }
@@ -637,7 +753,7 @@ async function populateConnectionChoices(projectSelect) {
   try {
     const response = await fetchJson(
       `/api/v1/connections?project_id=${projectSelect.value}&page=1&page_size=500`,
-      sessionStorage.getItem(TOKEN_KEY),
+      readStoredToken(),
     );
     const connections = Array.isArray(response.items) ? response.items : [];
     [
@@ -677,7 +793,7 @@ function renderEndpoint(item) {
   const { path, method, operation } = item;
   const params = (operation.parameters || []).filter((p) => p.in === "path" || p.in === "query");
   const bodySchema = operation.requestBody?.content?.["application/json"]?.schema;
-  const summary = OPERATION_LABELS[operation.operationId] || operation.summary || "接口";
+  const summary = operation.summary || OPERATION_LABELS[operation.operationId] || "接口";
   const isClarify = String(operation.operationId || "").startsWith("clarify_pipeline");
   return `
     <article class="endpoint" data-endpoint="${esc(path)}" data-method="${method}">
@@ -702,7 +818,7 @@ function renderEndpoint(item) {
                   (param) => `
                     <div class="param-row">
                       <div>
-                        <strong>${esc(fieldLabel(param.name))}</strong>
+                        <strong>${esc(param.description || fieldLabel(param.name))}</strong>
                       </div>
                       <span>${param.required ? "必填" : "选填"}</span>
                       <input
@@ -788,7 +904,7 @@ function renderBodyForm(schema) {
 
 function renderBodyField(key, schema, required, fieldPath) {
   const type = schema.type || (schema.properties ? "object" : "string");
-  const label = fieldLabel(key);
+  const label = (schema.description || fieldLabel(key)).replace(/[。.：:]\s*$/, "");
   const textareaTypes = new Set(["object", "description", "content", "natural_language", "answer"]);
   const isPassword = String(key).toLowerCase().includes("password");
   const isTextarea = textareaTypes.has(key) || textareaTypes.has(type);
@@ -833,12 +949,7 @@ function renderBodyField(key, schema, required, fieldPath) {
 }
 
 function fieldLabel(name) {
-  return (
-    FIELD_LABELS[name] ||
-    String(name)
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (ch) => ch.toUpperCase())
-  );
+  return FIELD_LABELS[name] || String(name);
 }
 
 function valueLabel(value) {
@@ -918,7 +1029,7 @@ async function handleDocsClick(event) {
   const resultBox = endpoint.querySelector("[data-result]");
   const path = endpoint.dataset.endpoint;
   const method = endpoint.dataset.method;
-  if (!sessionStorage.getItem(TOKEN_KEY)) {
+  if (!readStoredToken()) {
     showManualLogin("请先登录，再执行操作。");
     return;
   }
@@ -955,7 +1066,7 @@ async function handleDocsClick(event) {
   try {
     const url = buildTryUrl(path, params);
     const headers = {};
-    const token = sessionStorage.getItem(TOKEN_KEY);
+    const token = readStoredToken();
     if (token) headers.Authorization = `Bearer ${token}`;
     if (requestBody !== null) headers["Content-Type"] = "application/json";
     const response = await fetch(url, {
@@ -1022,7 +1133,7 @@ function schemaText(schema) {
   const rawType =
     resolved.type || resolved.anyOf?.[0]?.type || resolved.$ref?.split("/").pop() || "any";
   const type = String(rawType).replace("_", " ");
-  return TYPE_LABELS[type] || type;
+  return TYPE_LABELS[type] || resolved.title || type;
 }
 
 function resolveRef(schema, seen = new Set()) {
@@ -1048,17 +1159,22 @@ function resolveRef(schema, seen = new Set()) {
 function displayTag(tag) {
   const labels = {
     auth: "认证与用户",
-    tenants: "租户",
+    tenants: "租户管理",
     projects: "项目与连接",
-    connections: "数据连接",
+    connections: "数据连接与探查",
     pipelines: "管道生成",
     approvals: "审批",
-    preparations: "准备与提交",
+    preparations: "执行准备",
     "execution-runs": "执行记录",
+    knowledge: "知识库",
+    benchmark: "效果评测",
+    departments: "部门管理",
+    permissions: "权限管理",
+    general: "通用",
     health: "健康检查",
     default: "通用",
   };
-  return labels[tag] || labels.default;
+  return labels[tag] || tag || labels.default;
 }
 
 function esc(value) {

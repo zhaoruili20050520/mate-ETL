@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ETL-Agent 接口文档</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Source Han Sans SC",
+          sans-serif;
+        background: #ffffff;
+      }
+
+      #redoc-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 12px;
+        background: #ffffff;
+        color: #475569;
+        font-size: 15px;
+      }
+
+      #redoc-loading .spinner {
+        width: 30px;
+        height: 30px;
+        border: 3px solid #dbeafe;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: redoc-spin 0.9s linear infinite;
+      }
+
+      @keyframes redoc-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .redoc-back {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 9997;
+        padding: 10px 18px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #ffffff;
+        font-size: 14px;
+        text-decoration: none;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+      }
+
+      .redoc-back:hover {
+        background: #1d4ed8;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="redoc-loading">
+      <div class="spinner"></div>
+      <span>正在加载接口文档…</span>
+    </div>
+    <div id="redoc-container"></div>
+    <a class="redoc-back" href="/manual">返回操作手册</a>
+
+    <script src="/static/ui/vendor/redoc.standalone.js?v=1"></script>
+    <script>
+      (function () {
+        const container = document.getElementById("redoc-container");
+        const loading = document.getElementById("redoc-loading");
+        if (!window.Redoc) {
+          loading.innerHTML = "<span>接口文档组件加载失败，请刷新页面重试。</span>";
+          return;
+        }
+        window.Redoc.init(
+          "/openapi.json?v=4",
+          {
+            hideDownloadButton: false,
+            expandResponses: "200,201",
+            jsonSampleExpandLevel: 2,
+            pathInMiddlePanel: true,
+            theme: {
+              colors: { primary: { main: "#2563eb" } },
+              typography: {
+                fontSize: "15px",
+                lineHeight: "1.6",
+                fontFamily:
+                  '"PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Source Han Sans SC", sans-serif',
+                headings: { fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif' },
+              },
+              sidebar: {
+                backgroundColor: "#f8fafc",
+                textColor: "#334155",
+                activeTextColor: "#1d4ed8",
+              },
+            },
+          },
+          container,
+          function () {
+            loading.remove();
+            document.dispatchEvent(new CustomEvent("redoc-ready"));
+          },
+        );
+        setTimeout(function () {
+          if (document.body.contains(loading)) {
+            loading.remove();
+          }
+        }, 15000);
+      })();
+    </script>
+    <script src="/static/ui/redoc-zh.js?v=8"></script>
+  </body>
+</html>

@@ -22,7 +22,13 @@ from etl_agent.services.metadata_service import (
 # autodiscover_tasks only loads this ``tasks.py`` module; without these
 # imports the task functions in execution_worker.py and
 # supervision_worker.py would never be decorated/registered.
+#
+# ``outbox_publisher`` must be imported too: it owns the
+# ``etl_agent.publish_outbox`` beat task.  Without this import the beat
+# schedule references an unregistered task, so committed preparations
+# never reach the execution worker and runs stay in ``pending`` forever.
 from etl_agent.workers import execution_worker as _execution_worker  # noqa: F401
+from etl_agent.workers import outbox_publisher as _outbox_publisher  # noqa: F401
 from etl_agent.workers import supervision_worker as _supervision_worker  # noqa: F401
 from etl_agent.workers.celery_app import celery_app
 

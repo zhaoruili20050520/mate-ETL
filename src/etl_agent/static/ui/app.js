@@ -1,9 +1,35 @@
+// Bump this together with the ?v= query in index.html: the browser caches
+// /static/ui/app.js by URL, so a stale copy silently keeps running old logic.
+const APP_BUILD = "2026-10-27.3";
+window.__appBuild = APP_BUILD;
+
 const API_BASE = "/api/v1";
 const TOKEN_KEY = "etl_agent_token_v2";
 const SESSION_KEY = "etl_agent_session_v2";
 
+// Login state lives in localStorage so a session survives browser restarts:
+// tokens are issued without an ``exp`` claim while JWT_EXPIRE_MINUTES=0.
+// sessionStorage stays as a fallback for tabs opened before the switch.
+function readStoredAuth(key) {
+  return localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+}
+
+function storeAuth(token, session) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
+function clearStoredAuth() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
 const state = {
-  token: sessionStorage.getItem(TOKEN_KEY) || "",
+  token: readStoredAuth(TOKEN_KEY) || "",
   session: null,
   health: null,
   tenants: [],
@@ -18,6 +44,8 @@ const state = {
   loading: false,
   kb: {
     docs: [],
+    chunkDocId: null,
+    chunkSeq: 0,
     candidates: [],
     publishedFaqs: [],
     gaps: [],
@@ -37,15 +65,14 @@ const state = {
 const els = {};
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Older versions shared login state across every tab. Clear those
-  // browser-wide tokens so each tab can keep an independent account.
+  // Only purge the legacy v1 keys; v2 credentials are intentionally persisted
+  // in localStorage so a login is no longer lost when the browser closes.
   localStorage.removeItem("etl_agent_token");
   localStorage.removeItem("etl_agent_session");
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(SESSION_KEY);
   bindElements();
   bindActions();
   hydrateSession();
+  showBuildBadge();
   if (state.token) {
     showApp();
     loadAll().then(() => openRequestedPage());
@@ -55,11 +82,28 @@ document.addEventListener("DOMContentLoaded", () => {
   window.lucide.createIcons();
 });
 
+// Visible build stamp. If this badge is missing (bottom-right corner), the
+// browser is still executing a cached app.js and every "fix" will look ignored.
+function showBuildBadge() {
+  if (document.getElementById("uiBuildBadge")) return;
+  const badge = document.createElement("div");
+  badge.id = "uiBuildBadge";
+  badge.textContent = `UI ${APP_BUILD}`;
+  badge.title = "前端构建版本，用于确认浏览器是否加载了最新脚本";
+  badge.style.cssText =
+    "position:fixed;right:10px;bottom:8px;z-index:60;font-size:11px;" +
+    "line-height:1;padding:4px 7px;border-radius:999px;" +
+    "background:rgba(15,23,42,.06);color:#64748b;pointer-events:none;";
+  document.body.appendChild(badge);
+}
+
 function openRequestedPage() {
   const requested = new URLSearchParams(window.location.search).get("page");
-  if (requested && document.getElementById(`page-${requested}`)) {
-    goToPage(requested);
-  }
+  if (!requested || !document.getElementById(`page-${requested}`)) return;
+  // Never jump into a page whose nav entry was hidden by permissions.
+  const navItem = document.querySelector(`.nav-item[data-page="${requested}"]`);
+  if (navItem && navItem.hidden) return;
+  goToPage(requested);
 }
 
 function bindElements() {
@@ -162,8 +206,30 @@ function bindActions() {
   const kbSubmitBatch = document.getElementById("kbSubmitBatch");
   if (kbSubmitBatch) kbSubmitBatch.addEventListener("click", kbImportBatch);
   const kbCloseChunks = document.getElementById("kbCloseChunks");
-  if (kbCloseChunks) kbCloseChunks.addEventListener("click", () => {
-    document.getElementById("kbChunksPanel").hidden = true;
+  if (kbCloseChunks) kbCloseChunks.addEventListener("click", closeKbChunksPanel);
+
+  // Delegated listeners: the document table is re-rendered after every
+  // save/refresh, so binding per row would silently drop handlers.
+  const kbDocsBody = document.getElementById("kbDocsBody");
+  if (kbDocsBody) kbDocsBody.addEventListener("click", (event) => {
+    const chunkButton = event.target.closest(".kb-chunks-btn");
+    if (chunkButton) {
+      kbLoadDocumentChunks(chunkButton.dataset.docId);
+      return;
+    }
+    const publishButton = event.target.closest(".kb-publish-btn");
+    if (publishButton && !publishButton.disabled) {
+      kbPublishDoc(publishButton.dataset.docId, publishButton);
+      return;
+    }
+    const deleteButton = event.target.closest(".kb-delete-doc-btn");
+    if (deleteButton) kbDeleteDoc(deleteButton.dataset.docId, deleteButton);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const chunksPanel = document.getElementById("kbChunksPanel");
+    if (chunksPanel && !chunksPanel.hidden) closeKbChunksPanel();
   });
   const kbAskSubmit = document.getElementById("kbAskSubmit");
   if (kbAskSubmit) kbAskSubmit.addEventListener("click", kbAskQuestion);
@@ -257,7 +323,8 @@ function bindActions() {
 
 function hydrateSession() {
   try {
-    state.session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
+    const raw = readStoredAuth(SESSION_KEY);
+    state.session = raw ? JSON.parse(raw) : null;
   } catch {
     state.session = null;
   }
@@ -365,7 +432,7 @@ async function api(path, options = {}) {
     const detail = payload?.detail || payload?.error?.message || payload?.message || response.statusText;
     if (response.status === 401 && state.token && !path.endsWith("/auth/login")) {
       expireSession();
-      throw new Error("登录已过期，请重新登录。");
+      throw new Error("登录状态已失效，请重新登录。");
     }
     const err = new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
     err.status = response.status;
@@ -378,10 +445,9 @@ async function api(path, options = {}) {
 function expireSession() {
   state.token = "";
   state.session = null;
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(SESSION_KEY);
+  clearStoredAuth();
   showLogin();
-  els.authStatus.textContent = "登录已过期，请重新输入账号和密码。";
+  els.authStatus.textContent = "登录状态已失效，请重新输入账号和密码。";
   window.lucide.createIcons();
 }
 
@@ -400,14 +466,13 @@ async function login() {
       body: { username, password },
     });
     state.token = result.access_token;
-    sessionStorage.setItem(TOKEN_KEY, result.access_token);
     state.session = {
       username: result.username,
       role: result.role,
       tenant_id: result.tenant_id,
       project_id: result.project_id,
     };
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
+    storeAuth(result.access_token, state.session);
     hydrateSession();
     showApp();
     await loadAll();
@@ -423,10 +488,7 @@ async function login() {
 function logout() {
   state.token = "";
   state.session = null;
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(SESSION_KEY);
+  clearStoredAuth();
   showLogin();
   window.lucide.createIcons();
 }
@@ -478,7 +540,7 @@ async function loadWorkspace() {
 
   const tenant = state.tenants[0];
   state.session = { ...(state.session || {}), tenant_id: tenant.id };
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
+  localStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
 
   const projectPage = await api(`${API_BASE}/projects?tenant_id=${tenant.id}&page=1&page_size=100`);
   state.projects = projectPage.items || [];
@@ -1281,10 +1343,23 @@ function applyKnowledgePermissions() {
     const element = document.getElementById(id);
     if (element) element.hidden = !visible;
   };
-  setVisible(
-    "kbAdminNav",
-    kbCan("dept:manage") || kbCan("perm:manage"),
-  );
+  // Nav entries follow the same permission set, so a viewer no longer sees
+  // FAQ / gap / admin entry points that would only return 403.
+  const setNavVisible = (page, visible) => {
+    const item = document.querySelector(`.nav-item[data-page="${page}"]`);
+    if (!item) return;
+    item.hidden = !visible;
+    const section = document.getElementById(`page-${page}`);
+    if (!visible && section?.classList.contains("active")) {
+      goToPage("overview");
+    }
+  };
+  setNavVisible("kb-docs", kbCan("kb:document:read"));
+  setNavVisible("kb-ask", kbCan("kb:ask"));
+  setNavVisible("kb-faqs", kbCan("kb:faq:publish") || kbCan("kb:faq:cluster"));
+  setNavVisible("kb-gaps", kbCan("kb:gap:resolve"));
+  setNavVisible("kb-metrics", kbCan("kb:metrics:read"));
+  setNavVisible("kb-admin", kbCan("dept:manage") || kbCan("perm:manage"));
   setVisible("kbLoadDemo", kbCan("kb:document:create"));
   setVisible("kbImportDoc", kbCan("kb:document:create"));
   setVisible("kbBatchImport", kbCan("kb:document:batch"));
@@ -1346,15 +1421,8 @@ function renderKbDocs() {
         </button>` : ""}
       </td>
     </tr>`).join("");
-  document.querySelectorAll(".kb-publish-btn").forEach((btn) => {
-    btn.addEventListener("click", () => kbPublishDoc(btn.dataset.docId));
-  });
-  document.querySelectorAll(".kb-chunks-btn").forEach((btn) => {
-    btn.addEventListener("click", () => kbLoadDocumentChunks(btn.dataset.docId));
-  });
-  document.querySelectorAll(".kb-delete-doc-btn").forEach((btn) => {
-    btn.addEventListener("click", () => kbDeleteDoc(btn.dataset.docId));
-  });
+  // Row handlers are delegated on #kbDocsBody (see bindActions), so
+  // re-rendering this table can never leave a button without a listener.
   window.lucide.createIcons();
 }
 
@@ -1532,20 +1600,95 @@ function parseKbBatchDocuments(raw) {
   }).filter((item) => item.title && item.content);
 }
 
+function closeKbChunksPanel() {
+  const panel = document.getElementById("kbChunksPanel");
+  const body = document.getElementById("kbChunksBody");
+  const title = document.getElementById("kbChunksTitle");
+  // Invalidate any in-flight request so a late response cannot reopen it.
+  state.kb.chunkSeq += 1;
+  state.kb.chunkDocId = null;
+  if (panel) panel.hidden = true;
+  if (body) body.innerHTML = "";
+  if (title) title.textContent = "文档分块";
+}
+
+function flashKbChunksPanel(panel) {
+  panel.classList.remove("kb-panel-flash");
+  void panel.offsetWidth; // restart the animation
+  panel.classList.add("kb-panel-flash");
+  window.setTimeout(() => panel.classList.remove("kb-panel-flash"), 1200);
+}
+
+function kbChunkPanelInViewport(panel) {
+  const rect = panel.getBoundingClientRect();
+  return rect.top >= 0 && rect.top < window.innerHeight - 160;
+}
+
 async function kbLoadDocumentChunks(docId) {
   const panel = document.getElementById("kbChunksPanel");
   const body = document.getElementById("kbChunksBody");
+  const title = document.getElementById("kbChunksTitle");
+  const doc = state.kb.docs.find((item) => item.id === docId);
+
+  // A later click always wins: an older response must not overwrite it.
+  state.kb.chunkSeq += 1;
+  const seq = state.kb.chunkSeq;
+  state.kb.chunkDocId = docId;
+
   panel.hidden = false;
+  // Show the target document immediately so switching is visible even
+  // before the request finishes.
+  title.textContent = doc ? `${doc.title} · 分块编辑` : "文档分块";
   body.innerHTML = `<div class="loading"><i data-lucide="loader-circle"></i>加载中...</div>`;
-  try {
-    const doc = await kbApi(`/documents/${docId}`);
-    document.getElementById("kbChunksTitle").textContent = `${doc.title} · 分块编辑`;
-    renderKbChunks(doc);
+  flashKbChunksPanel(panel);
+  if (!kbChunkPanelInViewport(panel)) {
     panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  try {
+    const detail = await kbApi(`/documents/${docId}`);
+    if (seq !== state.kb.chunkSeq) return;
+    title.textContent = `${detail.title} · 分块编辑`;
+    renderKbChunks(detail);
   } catch (error) {
+    if (seq !== state.kb.chunkSeq) return;
     body.innerHTML = `<p class="kb-error-text">${esc(error.message)}</p>`;
   }
   window.lucide.createIcons();
+}
+
+const kbPendingKeys = new Set();
+
+// One in-flight request per object. Without this, every extra click fires
+// another PUT/DELETE; the API is an idempotent overwrite, so N clicks produce
+// N "保存成功" toasts while the button never appears to be busy.
+function kbBeginPending(key, button, busyText) {
+  if (kbPendingKeys.has(key)) return null;
+  kbPendingKeys.add(key);
+  if (!button) return { done: () => kbPendingKeys.delete(key) };
+  const originalHtml = button.innerHTML;
+  const wasDisabled = button.disabled;
+  button.disabled = true;
+  button.textContent = busyText;
+  return {
+    done: () => {
+      kbPendingKeys.delete(key);
+      if (!button.isConnected) return;
+      button.disabled = wasDisabled;
+      button.innerHTML = originalHtml;
+    },
+  };
+}
+
+function kbChunkSnapshot(editor) {
+  const field = (selector) => (editor.querySelector(selector)?.value || "").trim();
+  return JSON.stringify({
+    title: field(".kb-chunk-title"),
+    content: field(".kb-chunk-content"),
+    visibility: editor.querySelector(".kb-chunk-visibility")?.value || "",
+    departments: field(".kb-chunk-departments"),
+    roles: field(".kb-chunk-roles"),
+    users: field(".kb-chunk-users"),
+  });
 }
 
 function renderKbChunks(doc) {
@@ -1582,53 +1725,77 @@ function renderKbChunks(doc) {
         </div>
       </div>`;
   }).join("");
-  document.querySelectorAll(".kb-save-chunk").forEach((button) => {
+  // Remember the values as rendered, so "保存" can skip a no-op write.
+  body.querySelectorAll(".kb-chunk-editor").forEach((editor) => {
+    editor.dataset.snapshot = kbChunkSnapshot(editor);
+  });
+  body.querySelectorAll(".kb-save-chunk").forEach((button) => {
     button.addEventListener("click", () => {
       const editor = button.closest(".kb-chunk-editor");
-      kbSaveChunk(editor.dataset.chunkId, editor, doc.id);
+      kbSaveChunk(editor.dataset.chunkId, editor, button);
     });
   });
-  document.querySelectorAll(".kb-delete-chunk").forEach((button) => {
+  body.querySelectorAll(".kb-delete-chunk").forEach((button) => {
     button.addEventListener("click", () => {
       const editor = button.closest(".kb-chunk-editor");
-      kbDeleteChunk(editor.dataset.chunkId, doc.id);
+      kbDeleteChunk(editor.dataset.chunkId, button);
     });
   });
 }
 
-async function kbSaveChunk(chunkId, editor, docId) {
-  const payload = {
-    title: editor.querySelector(".kb-chunk-title").value.trim(),
-    content: editor.querySelector(".kb-chunk-content").value.trim(),
-    permissions: kbPermissionsFromFields(
-      null,
-      null,
-      null,
-      null,
-      editor,
-    ),
-  };
-  if (!payload.title || !payload.content) {
-    toast("保存失败", "分块标题和内容不能为空", "error");
-    return;
-  }
+async function kbSaveChunk(chunkId, editor, button) {
+  const pending = kbBeginPending(`chunk:${chunkId}`, button, "保存中...");
+  if (!pending) return;
   try {
+    const payload = {
+      title: editor.querySelector(".kb-chunk-title").value.trim(),
+      content: editor.querySelector(".kb-chunk-content").value.trim(),
+      permissions: kbPermissionsFromFields(
+        null,
+        null,
+        null,
+        null,
+        editor,
+      ),
+    };
+    if (!payload.title || !payload.content) {
+      toast("保存失败", "分块标题和内容不能为空", "error");
+      return;
+    }
+    if (kbChunkSnapshot(editor) === editor.dataset.snapshot) {
+      // Nothing changed: skip the write. Throttle the notice so a triple click
+      // does not stack three identical toasts.
+      const now = Date.now();
+      if (now - Number(editor.dataset.noopAt || 0) > 800) {
+        editor.dataset.noopAt = String(now);
+        toast("没有改动", "分块内容与权限未变化，无需保存");
+      }
+      return;
+    }
     await kbApi(`/chunks/${chunkId}`, { method: "PUT", body: payload });
-    toast("保存成功", "分块内容与权限已更新");
-    await kbLoadDocumentChunks(docId);
+    toast("保存成功", `分块内容与权限已更新 · UI ${APP_BUILD}`);
+    closeKbChunksPanel();
+    await kbLoadDocs();
   } catch (error) {
     toast("保存失败", error.message, "error");
+  } finally {
+    pending.done();
   }
 }
 
-async function kbDeleteChunk(chunkId, docId) {
+async function kbDeleteChunk(chunkId, button) {
   if (!window.confirm("确定删除这个知识分块吗？")) return;
+  const pending = kbBeginPending(`chunk:${chunkId}`, button, "删除中...");
+  if (!pending) return;
   try {
     await kbApi(`/chunks/${chunkId}`, { method: "DELETE" });
     toast("删除成功", "知识分块已删除");
-    await kbLoadDocumentChunks(docId);
+    closeKbChunksPanel();
+    await kbLoadDocs();
   } catch (error) {
     toast("删除失败", error.message, "error");
+  } finally {
+    pending.done();
   }
 }
 
@@ -1936,24 +2103,32 @@ async function kbLoadDemoDocs() {
   }
 }
 
-async function kbPublishDoc(docId) {
+async function kbPublishDoc(docId, button) {
+  const pending = kbBeginPending(`doc:${docId}`, button, "发布中...");
+  if (!pending) return;
   try {
     await kbApi(`/documents/${docId}/publish`, { method: "POST" });
     toast("发布成功", "文档已发布，问答时可检索");
     await kbLoadDocs();
   } catch (e) {
     toast("发布失败", e.message, "error");
+  } finally {
+    pending.done();
   }
 }
 
-async function kbDeleteDoc(docId) {
+async function kbDeleteDoc(docId, button) {
   if (!window.confirm("确定删除这篇文档及其所有分块吗？")) return;
+  const pending = kbBeginPending(`doc:${docId}`, button, "删除中...");
+  if (!pending) return;
   try {
     await kbApi(`/documents/${docId}`, { method: "DELETE" });
     toast("删除成功", "文档及其分块已删除");
     await kbLoadDocs();
   } catch (e) {
     toast("删除失败", e.message, "error");
+  } finally {
+    pending.done();
   }
 }
 
