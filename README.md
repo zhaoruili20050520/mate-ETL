@@ -193,10 +193,6 @@ src/etl_agent/
 └── workers/      Celery 执行与监督任务
 ```
 
-## 演示资料
-
-`6组--赵瑞立/` 目录包含项目演示过程中使用的界面截图。
-
 ## Gitee
 
 仓库地址：<https://gitee.com/get-some-fresh-air/etl__-agent>
